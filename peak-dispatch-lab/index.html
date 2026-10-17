@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>零点不崩 · 十万骑手派单实验室</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="bg-grid" aria-hidden="true"></div>
+<div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+<div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">∞</div>
+    <div>
+      <h1>高并发 &amp; 实时调度 · 交互实验室</h1>
+      <p>把「零点不崩」和「十万骑手派单」拆成可以亲手点开的两张系统图</p>
+    </div>
+  </div>
+  <div class="top-actions">
+    <span class="hint-pill"><i class="dot-pulse"></i>所有发光节点都可以点</span>
+    <button id="soundToggle" class="ghost-btn" type="button" aria-pressed="true">🔊 音效开</button>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="场景切换">
+  <button class="tab active" role="tab" data-tab="peak" aria-selected="true">
+    <span class="tab-index">01</span>
+    <span class="tab-text">
+      <strong>双十一零点，系统怎么不崩</strong>
+      <small>流量洪峰 · 缓存 · 限流 · 削峰 · 降级</small>
+    </span>
+  </button>
+  <button class="tab" role="tab" data-tab="dispatch" aria-selected="false">
+    <span class="tab-index">02</span>
+    <span class="tab-text">
+      <strong>十万骑手，订单怎么派</strong>
+      <small>就近派单 · 负载均衡 · 全局最优 · 极端天气</small>
+    </span>
+  </button>
+  <div class="tab-ink" id="tabInk" aria-hidden="true"></div>
+</nav>
+
+<main>
+  <!-- ======================= 场景一 ======================= -->
+  <section class="panel scene active" id="scene-peak" role="tabpanel">
+    <div class="scene-head">
+      <div>
+        <h2>零点前 60 秒</h2>
+        <p class="scene-sub">从 <b>2 万 QPS</b> 瞬间冲到 <b>近 9 万 QPS</b>：点节点加开关、点故障按钮注入事故，观察系统是稳住还是塌掉。</p>
+      </div>
+      <div class="scene-actions">
+        <button id="peakSpike" class="primary-btn" type="button">⚡ 触发零点洪峰</button>
+        <button id="peakReset" class="ghost-btn" type="button">↻ 重置演练</button>
+      </div>
+    </div>
+
+    <div class="stage-layout">
+      <div class="stage-card">
+        <div class="stage-toolbar">
+          <div class="status-chip" id="peakStatus"><i></i><span>系统平稳</span></div>
+          <div class="clock" id="peakClock">23:59:52</div>
+          <div class="toolbar-spacer"></div>
+          <span class="tip">点击画布中的节点 = 开关对应能力</span>
+        </div>
+
+        <div class="canvas-wrap" id="peakWrap">
+          <canvas id="peakCanvas"></canvas>
+          <div class="peak-banner" id="peakBanner" aria-live="polite"></div>
+          <div class="canvas-legend">
+            <span><i class="lg lg-req"></i>正常请求</span>
+            <span><i class="lg lg-hit"></i>缓存命中</span>
+            <span><i class="lg lg-db"></i>回源</span>
+            <span><i class="lg lg-drop"></i>被拦截 / 超时</span>
+          </div>
+        </div>
+
+        <div class="metrics" id="peakMetrics">
+          <div class="metric"><span class="m-label">入口 QPS</span><b id="mQps">20,000</b><small id="mQpsTrend">基线</small></div>
+          <div class="metric"><span class="m-label">P99 延迟</span><b id="mLatency">86<em>ms</em></b><small id="mLatencyTrend">健康</small></div>
+          <div class="metric"><span class="m-label">错误率</span><b id="mError">0.02<em>%</em></b><small id="mErrorTrend">健康</small></div>
+          <div class="metric"><span class="m-label">数据库负载</span><b id="mDb">21<em>%</em></b><small id="mDbTrend">余量充足</small></div>
+          <div class="metric"><span class="m-label">排队请求</span><b id="mQueue">0</b><small id="mQueueTrend">无积压</small></div>
+        </div>
+      </div>
+
+      <aside class="control-card">
+        <div class="control-head">
+          <h3>控制台</h3>
+          <span class="badge" id="peakLevelBadge">Lv.0 裸奔</span>
+        </div>
+
+        <div class="control-block">
+          <div class="block-title">流量压力 <b id="peakTrafficLabel">1.0×</b></div>
+          <input id="peakTraffic" class="range" type="range" min="1" max="5" step="0.5" value="1" />
+          <div class="range-scale"><span>日常</span><span>大促</span><span>极端</span></div>
+        </div>
+
+        <div class="control-block">
+          <div class="block-title">能力开关 <span class="tiny">点画布节点同样有效</span></div>
+          <div class="switch-grid" id="peakSwitches"></div>
+        </div>
+
+        <div class="control-block">
+          <div class="block-title danger-title">故障注入</div>
+          <div class="fault-grid">
+            <button class="fault-btn" data-fault="cacheAvalanche" type="button"><b>缓存雪崩</b><small>热点 Key 同时过期</small></button>
+            <button class="fault-btn" data-fault="hotKey" type="button"><b>热点 Key</b><small>单个 SKU 被挤爆</small></button>
+            <button class="fault-btn" data-fault="idcDown" type="button"><b>机房断电</b><small>三分之一实例下线</small></button>
+            <button class="fault-btn" data-fault="slowSql" type="button"><b>慢查询</b><small>数据库被拖住</small></button>
+          </div>
+        </div>
+
+        <div class="control-block">
+          <div class="block-title">演练日志</div>
+          <div class="event-log" id="peakLog"></div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="knowledge-row">
+      <article class="k-card clickable" data-k="flow">
+        <span class="k-num">01</span>
+        <h4>先扛住入口</h4>
+        <p>CDN、静态资源、网关限流是第一道闸门。</p>
+        <span class="k-link">展开 →</span>
+      </article>
+      <article class="k-card clickable" data-k="cache">
+        <span class="k-num">02</span>
+        <h4>别让请求打到数据库</h4>
+        <p>多级缓存 + 热点探测，把 85% 的读挡在 DB 之前。</p>
+        <span class="k-link">展开 →</span>
+      </article>
+      <article class="k-card clickable" data-k="queue">
+        <span class="k-num">03</span>
+        <h4>削峰而不是硬抗</h4>
+        <p>消息队列把瞬时洪峰摊平到接下来的几分钟。</p>
+        <span class="k-link">展开 →</span>
+      </article>
+      <article class="k-card clickable" data-k="degrade">
+        <span class="k-num">04</span>
+        <h4>有策略地放弃</h4>
+        <p>熔断、降级、排队页：保住核心交易链路。</p>
+        <span class="k-link">展开 →</span>
+      </article>
+    </div>
+  </section>
+
+  <!-- ======================= 场景二 ======================= -->
+  <section class="panel scene" id="scene-dispatch" role="tabpanel">
+    <div class="scene-head">
+      <div>
+        <h2>一座城市，十万名骑手</h2>
+        <p class="scene-sub">点击地图任意位置下一单，点击骑手查看他的实时状态；切换派单策略，看指标怎么变。</p>
+      </div>
+      <div class="scene-actions">
+        <button id="dispatchPlay" class="primary-btn" type="button">⏸ 暂停仿真</button>
+        <button id="dispatchReset" class="ghost-btn" type="button">↻ 重置</button>
+      </div>
+    </div>
+
+    <div class="stage-layout">
+      <div class="stage-card">
+        <div class="stage-toolbar">
+          <div class="status-chip" id="dispatchStatus"><i></i><span>实时仿真中</span></div>
+          <div class="clock" id="dispatchClock">12:00:00</div>
+          <div class="toolbar-spacer"></div>
+          <span class="tip">点击地图下单 · 点击骑手查看</span>
+        </div>
+        <div class="canvas-wrap dispatch-wrap" id="dispatchWrap">
+          <canvas id="dispatchCanvas"></canvas>
+          <div class="rain-layer" id="rainLayer" aria-hidden="true"></div>
+          <div class="dispatch-toast" id="dispatchToast" aria-live="polite"></div>
+          <div class="rider-card" id="riderCard" hidden>
+            <button class="card-close" id="riderCardClose" type="button">×</button>
+            <div class="rider-card-head">
+              <span class="rider-avatar" id="riderAvatar">骑</span>
+              <div>
+                <b id="riderName">骑手 #00000</b>
+                <small id="riderState">空闲中</small>
+              </div>
+            </div>
+            <div class="rider-card-grid">
+              <div><span>当前负载</span><b id="riderLoad">0 单</b></div>
+              <div><span>今日完成</span><b id="riderDone">0 单</b></div>
+              <div><span>准时率</span><b id="riderOnTime">100%</b></div>
+              <div><span>手速评分</span><b id="riderScore">4.9</b></div>
+            </div>
+            <button class="mini-btn" id="riderAssign" type="button">手动指派最近订单</button>
+          </div>
+          <div class="canvas-legend">
+            <span><i class="lg lg-rider"></i>空闲骑手</span>
+            <span><i class="lg lg-busy"></i>接单中</span>
+            <span><i class="lg lg-order"></i>待派订单</span>
+            <span><i class="lg lg-drop"></i>超时订单</span>
+          </div>
+        </div>
+
+        <div class="metrics" id="dispatchMetrics">
+          <div class="metric"><span class="m-label">在线骑手</span><b id="dRiders">100,000</b><small>1:400 抽样可视化</small></div>
+          <div class="metric"><span class="m-label">平均接单</span><b id="dAssign">12<em>s</em></b><small>从下单到接单</small></div>
+          <div class="metric"><span class="m-label">平均送达</span><b id="dDelivery">32<em>min</em></b><small>全链路时长</small></div>
+          <div class="metric"><span class="m-label">准时率</span><b id="dOnTime">98.2<em>%</em></b><small>承诺时间内</small></div>
+          <div class="metric"><span class="m-label">骑手空闲率</span><b id="dIdle">24<em>%</em></b><small>运力利用</small></div>
+          <div class="metric"><span class="m-label">派单吞吐</span><b id="dThroughput">7.4<em>k/s</em></b><small>全城估算</small></div>
+        </div>
+      </div>
+
+      <aside class="control-card">
+        <div class="control-head">
+          <h3>调度台</h3>
+          <span class="badge" id="strategyBadge">就近派单</span>
+        </div>
+
+        <div class="control-block">
+          <div class="block-title">派单策略</div>
+          <div class="strategy-grid" id="strategyGrid">
+            <button class="strategy active" data-strategy="nearest" type="button">
+              <b>就近优先</b><small>距离最短，快但容易扎堆</small>
+            </button>
+            <button class="strategy" data-strategy="balanced" type="button">
+              <b>负载均衡</b><small>距离 + 在手单量加权</small>
+            </button>
+            <button class="strategy" data-strategy="global" type="button">
+              <b>全局最优</b><small>批量最小成本匹配</small>
+            </button>
+            <button class="strategy" data-strategy="random" type="button">
+              <b>随机派单</b><small>对照组，看看有多糟</small>
+            </button>
+          </div>
+        </div>
+
+        <div class="control-block">
+          <div class="block-title">骑手规模 <b id="riderScaleLabel">100,000</b></div>
+          <input id="riderScale" class="range" type="range" min="10000" max="200000" step="10000" value="100000" />
+          <div class="range-scale"><span>1 万</span><span>10 万</span><span>20 万</span></div>
+        </div>
+
+        <div class="control-block">
+          <div class="block-title">订单压力 <b id="orderPressureLabel">1.0×</b></div>
+          <input id="orderPressure" class="range" type="range" min="0.4" max="3" step="0.2" value="1" />
+          <div class="range-scale"><span>空闲</span><span>正常</span><span>爆单</span></div>
+        </div>
+
+        <div class="control-block">
+          <div class="block-title danger-title">突发状况</div>
+          <div class="fault-grid">
+            <button class="fault-btn" data-event="rain" type="button"><b>暴雨</b><small>速度 -35%</small></button>
+            <button class="fault-btn" data-event="rush" type="button"><b>午高峰</b><small>下单量 ×2.5</small></button>
+            <button class="fault-btn" data-event="outage" type="button"><b>区域故障</b><small>商圈运力骤降</small></button>
+            <button class="fault-btn" data-event="clear" type="button"><b>天气转晴</b><small>恢复常态</small></button>
+          </div>
+        </div>
+
+        <div class="control-block">
+          <div class="block-title">算法观测 <span class="tiny">实时日志</span></div>
+          <div class="event-log" id="dispatchLog"></div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="knowledge-row">
+      <article class="k-card clickable" data-k="matching">
+        <span class="k-num">01</span>
+        <h4>派单是一个匹配问题</h4>
+        <p>订单与骑手构成二分图，成本 = 距离 + 负载 + 超时风险。</p>
+        <span class="k-link">展开 →</span>
+      </article>
+      <article class="k-card clickable" data-k="batch">
+        <span class="k-num">02</span>
+        <h4>别一单一次算</h4>
+        <p>把 2 秒内的订单攒成一批，用批量贪心/匈牙利算法降成本。</p>
+        <span class="k-link">展开 →</span>
+      </article>
+      <article class="k-card clickable" data-k="shed">
+        <span class="k-num">03</span>
+        <h4>运力不够时要有取舍</h4>
+        <p>动态加价、延长承诺时间、跨区调度，比强行派单更好。</p>
+        <span class="k-link">展开 →</span>
+      </article>
+      <article class="k-card clickable" data-k="scale">
+        <span class="k-num">04</span>
+        <h4>十万级怎么算得动</h4>
+        <p>按城市/商圈分片，每片独立匹配，再在边界做二次交换。</p>
+        <span class="k-link">展开 →</span>
+      </article>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <button class="modal-close" id="modalClose" type="button">×</button>
+    <span class="modal-tag" id="modalTag">原理</span>
+    <h3 id="modalTitle">标题</h3>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<footer class="footer">
+  <span>纯前端演示 · Canvas + 原生 JS · 数字为教学用简化模型</span>
+  <span id="fpsReadout">60 FPS</span>
+</footer>
+
+<script src="main.js"></script>
+<script src="peak.js"></script>
+<script src="dispatch.js"></script>
+<script src="boot.js"></script>
+</body>
+</html>
+
